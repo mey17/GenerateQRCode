@@ -1,0 +1,106 @@
+﻿@page "/qrcode-reader"
+@page "/cam"
+
+@inject IJSRuntime JSRuntime
+
+@using Microsoft.Extensions.Logging
+@inject HttpClient Http
+
+<h1 class="title">
+    IronBarCode With Blazor using Web Camera
+</h1>
+
+<h3>@QRCodeResult</h3>
+<section class="section">
+    <div class="container">
+        <div class="columns">
+            <div class="column is-four-fifths">
+
+                <video autoplay id="video" width="320"></video>
+                <br />
+                <button class="button is-hidden" id="btnPlay" @onclick="PlayCAM">
+                    <span class="icon is-small">
+                        <i class="fas fa-play">Play</i>
+                    </span>
+                </button>
+                <button class="button" id="btnPause" @onclick="PauseCAM">
+                    <span class="icon is-small">
+                        <i class="fas fa-pause">Pause</i>
+                    </span>
+                </button>
+                <button class="button is-success" id="btnCapture" @onclick="CaptureFrame">
+                    <span class="icon is-small">
+                        <i class="fas fa-camera">Capture</i>
+                    </span>
+                </button>
+                <button class="button" id="btnChangeCamera" @onclick="SwitchCAM">
+                    <span class="icon">
+                        <i class="fas fa-sync-alt"></i>
+                    </span>
+                    <span>Switch Cam</span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+</section>
+<canvas class="d-none" id="canvas"></canvas>
+
+<footer class="footer">
+    <div class="content has-text-centered">
+        <p>
+            By <a href="https://www.IronSoftware.com/">IronSoftware</a>
+        </p>
+    </div>
+</footer>
+
+
+@code {
+    public class CamImage
+    {
+        public string imageDataBase64 { get; set; }
+    }
+    private string QRCodeResult = "Click Capture To Read QR or Bar Code";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await JSRuntime.InvokeVoidAsync("initializeCamera");
+    }
+    private async Task SwitchCAM()
+    {
+        await JSRuntime.InvokeVoidAsync("SwitchCam");
+    }
+
+    private async Task PlayCAM()
+    {
+        await JSRuntime.InvokeVoidAsync("PlayCam");
+    }
+
+    private async Task PauseCAM()
+    {
+        await JSRuntime.InvokeVoidAsync("PauseCam");
+    }
+
+    private async Task CaptureFrame()
+    {
+        await JSRuntime.InvokeAsync<String>("getFrame", DotNetObjectReference.Create(this));
+    }
+
+    [JSInvokable]
+    public async void ProcessImage(string imageString)
+    {
+
+        var imageObject = new CamImage();
+        imageObject.imageDataBase64 = imageString;
+        var jsonObj = System.Text.Json.JsonSerializer.Serialize(imageObject);
+        //Do image processing here
+        var barcodeeResult = await Http.PostAsJsonAsync($"WeatherForecast/ReadBarCode", imageObject);
+        if (barcodeeResult.StatusCode == System.Net.HttpStatusCode.OK)
+        {
+            QRCodeResult = barcodeeResult.Content.ReadAsStringAsync().Result;
+            StateHasChanged();
+        }
+    }
+}
+
+}
